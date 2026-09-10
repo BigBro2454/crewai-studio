@@ -1,0 +1,47 @@
+{# HTMX partial – rendered by GET /api/runs/ui/list #}
+{% if runs %}
+<div class="space-y-3">
+  {% for run in runs %}
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center gap-4">
+    <!-- Status badge -->
+    <div class="shrink-0">
+      {% if run.status.value == "completed" %}
+        <span class="text-emerald-400 text-xl">✅</span>
+      {% elif run.status.value == "running" %}
+        <span class="text-yellow-400 text-xl animate-pulse">⏳</span>
+      {% elif run.status.value == "failed" %}
+        <span class="text-red-400 text-xl">❌</span>
+      {% else %}
+        <span class="text-gray-500 text-xl">🕐</span>
+      {% endif %}
+    </div>
+
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2">
+        <span class="font-medium text-white text-sm">{{ run.crew_name | title }} Crew</span>
+        <span class="text-xs text-gray-500">{{ run.run_id | string | truncate(8, true, '') }}…</span>
+      </div>
+      <p class="text-xs text-gray-500 mt-0.5">
+        {% if run.started_at %}{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC{% else %}Queued{% endif %}
+      </p>
+    </div>
+
+    <div class="text-right shrink-0">
+      <span class="inline-block text-xs px-2 py-0.5 rounded-full
+        {% if run.status.value == 'completed' %}bg-emerald-900 text-emerald-300
+        {% elif run.status.value == 'running' %}bg-yellow-900 text-yellow-300
+        {% elif run.status.value == 'failed' %}bg-red-900 text-red-300
+        {% else %}bg-gray-800 text-gray-400{% endif %}">
+        {{ run.status.value }}
+      </span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-12 text-gray-500">
+  <p class="text-4xl mb-3">🤖</p>
+  <p class="font-medium">No runs yet</p>
+  <p class="text-sm mt-1">Go to a crew and click <strong>Run Crew</strong> to get started.</p>
+</div>
+{% endif %}

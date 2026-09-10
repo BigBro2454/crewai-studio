@@ -1,0 +1,36 @@
+{# HTMX partial – crew detail panel #}
+<div class="space-y-4">
+  <div>
+    <h2 class="text-lg font-semibold text-white">{{ crew.name | title }} Crew</h2>
+    <p class="text-sm text-gray-400">{{ crew.description }}</p>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-medium text-gray-300 mb-2">Agents ({{ crew.agents | length }})</h3>
+    <ul class="space-y-2">
+      {% for agent in crew.agents %}
+      <li class="bg-gray-800 rounded-lg px-3 py-2 text-sm">
+        <span class="font-medium text-white">{{ agent.role }}</span>
+        <p class="text-xs text-gray-400 mt-0.5">{{ agent.goal }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-medium text-gray-300 mb-2">Tasks ({{ crew.tasks | length }})</h3>
+    <ol class="space-y-2 list-none">
+      {% for task in crew.tasks %}
+      <li class="flex gap-2 text-sm">
+        <span class="shrink-0 bg-indigo-700 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+          {{ loop.index }}
+        </span>
+        <div>
+          <p class="font-medium text-white">{{ task.name }}</p>
+          <p class="text-xs text-gray-400">{{ task.description }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+</div>

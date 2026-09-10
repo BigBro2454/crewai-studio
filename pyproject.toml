@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crewai-studio"
+version = "0.1.0"
+description = "Production-grade visual multi-agent studio and execution runtime powered by CrewAI and FastAPI"
+readme = "README.md"
+authors = [{ name = "Ishan Dhiman" }]
+license = { text = "MIT" }
+requires-python = ">=3.11"
+
+[project.urls]
+Homepage = "https://github.com/BigBro2454/crewai-studio"
+Repository = "https://github.com/BigBro2454/crewai-studio"
+
+dependencies = [
+    "crewai>=0.11.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "jinja2>=3.1.4",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27.0",
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.4.0",
+    "python-dotenv>=1.0.1",
+    "aiofiles>=24.1.0",
+    "sse-starlette>=2.1.3",
+    # LLM providers (all optional, install as needed)
+    "openai>=1.40.0",
+    "anthropic>=0.34.0",
+    "google-generativeai>=0.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

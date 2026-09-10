@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ crew.name | title }} Crew – {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <a href="/" class="text-sm text-gray-500 hover:text-gray-300">← Dashboard</a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Left: Crew info + Run form -->
+  <div class="lg:col-span-1 space-y-5">
+
+    <!-- Crew card -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <h1 class="text-2xl font-bold text-white">{{ crew.name | title }} Crew</h1>
+      <p class="text-gray-400 text-sm mt-1">{{ crew.description }}</p>
+      <div class="mt-4 space-y-2">
+        {% for agent in crew.agents %}
+        <div class="flex items-start gap-2 text-sm">
+          <span class="mt-0.5 text-indigo-400">👤</span>
+          <div>
+            <p class="font-medium text-white">{{ agent.name | title }}</p>
+            <p class="text-gray-500 text-xs">{{ agent.role }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Run form -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <h2 class="font-semibold text-white mb-4">Run This Crew</h2>
+
+      <form hx-post="/api/runs"
+            hx-target="#run-output"
+            hx-swap="innerHTML"
+            hx-indicator="#run-spinner"
+            class="space-y-4">
+
+        <input type="hidden" name="crew_name" value="{{ crew.name }}" />
+
+        {% if crew.name == "research" %}
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Topic</label>
+          <input type="text" name="topic" required
+                 placeholder="e.g. Quantum computing in 2025"
+                 class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+        </div>
+
+        {% elif crew.name == "content" %}
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Topic</label>
+          <input type="text" name="topic" required
+                 placeholder="e.g. The future of AI"
+                 class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Audience</label>
+          <input type="text" name="audience" required
+                 placeholder="e.g. Tech professionals"
+                 class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Content Type</label>
+          <select name="content_type"
+                  class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+            <option value="blog post">Blog Post</option>
+            <option value="LinkedIn article">LinkedIn Article</option>
+            <option value="Twitter thread">Twitter Thread</option>
+          </select>
+        </div>
+        {% endif %}
+
+        <button type="submit"
+                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-600/20">
+          <span id="run-spinner" class="htmx-indicator">⏳</span>
+          <span>Run Crew</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Right: Output panel -->
+  <div class="lg:col-span-2">
+    <div id="run-output"
+         class="bg-gray-900 border border-gray-800 rounded-xl p-5 min-h-64">
+      <p class="text-gray-500 text-sm text-center mt-8">
+        Fill in the form and click <strong>Run Crew</strong> to see the output here.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Tasks accordion -->
+<div class="mt-8">
+  <h2 class="text-lg font-semibold mb-3">Task Pipeline</h2>
+  <div class="space-y-2">
+    {% for task in crew.tasks %}
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+      <div class="flex items-center gap-3">
+        <span class="bg-indigo-600 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0">
+          {{ loop.index }}
+        </span>
+        <div>
+          <p class="font-medium text-sm text-white">{{ task.name }}</p>
+          <p class="text-xs text-gray-400 mt-0.5">Agent: {{ task.agent_name }}</p>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 mt-2 ml-9">{{ task.description }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Auto-scroll terminal log as new messages arrive
+  document.addEventListener("htmx:sseMessage", function(e) {
+    const box = document.getElementById("log-stream-box");
+    if (box) {
+      box.scrollTop = box.scrollHeight;
+    }
+  });
+</script>
+{% endblock %}

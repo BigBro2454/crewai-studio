@@ -1,0 +1,44 @@
+{# HTMX partial rendered immediately when a crew run is triggered #}
+<div class="space-y-5" hx-ext="sse" sse-connect="/api/runs/{{ run.run_id }}/stream">
+  <!-- Header with status -->
+  <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="text-indigo-400 font-semibold text-base">{{ run.crew_name | title }} Crew</span>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-900/60 text-yellow-300 border border-yellow-700/50 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-ping"></span>
+          Running
+        </span>
+      </div>
+      <p class="text-xs text-gray-500 mt-0.5">
+        Run ID: <code class="text-gray-400 font-mono text-xs">{{ run.run_id }}</code>
+      </p>
+    </div>
+    <div id="status-badge" sse-swap="status" hx-swap="outerHTML"></div>
+  </div>
+
+  <!-- Realtime Terminal Log Output -->
+  <div>
+    <div class="flex items-center justify-between mb-1.5">
+      <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Live Agent Execution</span>
+      <span class="text-xs text-gray-500 font-mono">streaming logs...</span>
+    </div>
+    <div id="log-stream-box"
+         class="bg-gray-950 border border-gray-800 rounded-lg p-4 font-mono text-xs text-emerald-400 h-72 overflow-y-auto space-y-1 select-text"
+         sse-swap="log"
+         hx-swap="beforeend">
+      <div class="text-gray-500 italic">Starting crew execution and assembling pipeline...</div>
+    </div>
+  </div>
+
+  <!-- Final Output Section (swapped by SSE 'done' event) -->
+  <div id="run-result-box" sse-swap="done" hx-swap="innerHTML">
+    <div class="p-4 bg-gray-950/60 border border-gray-800 rounded-lg text-center text-gray-500 text-xs flex items-center justify-center gap-2">
+      <svg class="animate-spin h-4 w-4 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      Waiting for agents to finish their tasks...
+    </div>
+  </div>
+</div>
