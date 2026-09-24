@@ -2,7 +2,7 @@
 {% if runs %}
 <div class="space-y-3">
   {% for run in runs %}
-  <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center gap-4">
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center gap-4 transition hover:border-gray-700">
     <!-- Status badge -->
     <div class="shrink-0">
       {% if run.status.value == "completed" %}
@@ -19,21 +19,35 @@
     <div class="flex-1 min-w-0">
       <div class="flex items-center gap-2">
         <span class="font-medium text-white text-sm">{{ run.crew_name | title }} Crew</span>
-        <span class="text-xs text-gray-500">{{ run.run_id | string | truncate(8, true, '') }}…</span>
+        <span class="text-xs text-gray-500 font-mono">{{ run.run_id | string | truncate(8, true, '') }}…</span>
+        {% if run.telemetry.duration_seconds is not none %}
+          <span class="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-300 font-mono">⚡ {{ "%.2f"|format(run.telemetry.duration_seconds) }}s</span>
+        {% endif %}
+        {% if run.telemetry.log_line_count > 0 %}
+          <span class="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-400 font-mono">📄 {{ run.telemetry.log_line_count }} logs</span>
+        {% endif %}
       </div>
-      <p class="text-xs text-gray-500 mt-0.5">
+      <p class="text-xs text-gray-500 mt-1">
         {% if run.started_at %}{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC{% else %}Queued{% endif %}
       </p>
     </div>
 
-    <div class="text-right shrink-0">
-      <span class="inline-block text-xs px-2 py-0.5 rounded-full
-        {% if run.status.value == 'completed' %}bg-emerald-900 text-emerald-300
-        {% elif run.status.value == 'running' %}bg-yellow-900 text-yellow-300
-        {% elif run.status.value == 'failed' %}bg-red-900 text-red-300
+    <div class="flex items-center gap-2 shrink-0">
+      <span class="inline-block text-xs px-2.5 py-1 rounded-full
+        {% if run.status.value == 'completed' %}bg-emerald-900/60 text-emerald-300 border border-emerald-800/50
+        {% elif run.status.value == 'running' %}bg-yellow-900/60 text-yellow-300 border border-yellow-800/50
+        {% elif run.status.value == 'failed' %}bg-red-900/60 text-red-300 border border-red-800/50
         {% else %}bg-gray-800 text-gray-400{% endif %}">
         {{ run.status.value }}
       </span>
+
+      <!-- Export actions -->
+      <a href="/api/runs/{{ run.run_id }}/export/markdown" download title="Export Markdown" class="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700 transition">
+        MD
+      </a>
+      <a href="/api/runs/{{ run.run_id }}/export/json" download title="Export JSON" class="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700 transition">
+        JSON
+      </a>
     </div>
   </div>
   {% endfor %}

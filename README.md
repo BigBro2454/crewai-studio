@@ -48,9 +48,10 @@ graph TB
         SSE_Endpoint["SSE Stream Endpoint<br/>(/api/runs/{id}/stream)"]
     end
 
-    subgraph StateLayer["In-Memory State & Buffer Management"]
-        RunStore["RunStore State Engine<br/>(Concurrent UUID -> RunResult Dict)"]
-        LogBuffer["Log Ring Buffer<br/>(_log_buffers[run_id])"]
+    subgraph StateLayer["Dual-Layer Persistence & Buffer Management"]
+        RunStore["RunStore State Engine<br/>(SQLite data/runs.db + In-Memory LRU Cache)"]
+        Exporter["RunExporter Engine<br/>(Structured JSON & L5 Markdown Reports)"]
+        LogBuffer["Log Ring Buffer<br/>(_log_buffers[run_id] -> Persisted Logs)"]
         BufferTee["BufferTee Stream Interceptor<br/>(ANSI Stripper + Stdout Tap)"]
     end
 
@@ -281,12 +282,12 @@ GEMINI_MODEL="gemini-2.5-flash"
 ```
 
 ### 3. Run Tests
-Verify system integrity and API route registration:
+Verify system integrity, SQLite persistence, and export engines:
 ```bash
 source .venv/bin/activate
 pytest
 ```
-*Expected: 8 passed across unit, API, and page route suites.*
+*Expected: 12 passed across unit, API, SQLite persistence, and export engine suites.*
 
 ### 4. Start CrewAI Studio
 ```bash
@@ -306,8 +307,11 @@ Open your browser to **`http://localhost:8000`** to access the visual studio!
 | `GET` | `/api/crews/{name}` | Retrieve schema for a specific crew | `CrewConfig` |
 | `POST` | `/api/runs` | Launch a new crew run asynchronously | `{"crew_name": "research", "inputs": {"topic": "AI Agents"}}` $\to$ `202 Accepted` |
 | `GET` | `/api/runs` | Retrieve execution history for all runs | `list[RunResult]` |
-| `GET` | `/api/runs/{run_id}` | Inspect status and output of a specific run | `RunResult` |
-| `GET` | `/api/runs/{run_id}/stream` | **Server-Sent Events (SSE)** log stream | `text/event-stream` (`message`, `status`, `done`) |
+| `GET` | `/api/runs/{run_id}` | Inspect status, telemetry and output of a run | `RunResult` |
+| `GET` | `/api/runs/{run_id}/logs` | Retrieve persisted execution logs | `list[str]` |
+| `GET` | `/api/runs/{run_id}/export/json` | Download structured telemetry & run JSON | `application/json` (attachment) |
+| `GET` | `/api/runs/{run_id}/export/markdown` | Download comprehensive Google L5 report | `text/markdown` (attachment) |
+| `GET` | `/api/runs/{run_id}/stream` | **Server-Sent Events (SSE)** log stream | `text/event-stream` (`log`, `status`, `done`) |
 
 ---
 
@@ -316,7 +320,7 @@ Open your browser to **`http://localhost:8000`** to access the visual studio!
 ```
 crewai-studio/
 ├── .env.example                    # Safe template for credentials
-├── .gitignore                      # Zero-leak Git exclusion rules
+├── .gitignore                      # Zero-leak Git exclusion rules (*.db, .env)
 ├── LICENSE                         # MIT Open Source License
 ├── main.py                         # Application entrypoint & Uvicorn runner
 ├── pyproject.toml                  # PEP 517/621 packaging metadata & dev dependencies
@@ -324,14 +328,15 @@ crewai-studio/
 ├── scripts/
 │   └── setup.sh                    # Automated dev setup script
 ├── tests/
-│   └── test_crews.py               # Comprehensive pytest test suite
+│   ├── test_crews.py               # API & crew configuration test suite
+│   └── test_telemetry_exporter.py  # SQLite persistence & export engine test suite
 │
 ├── backend/
 │   ├── api/
 │   │   ├── app.py                  # FastAPI application & UI route registration
 │   │   └── routers/
 │   │       ├── crews.py            # Crew metadata endpoints
-│   │       └── runs.py             # Run execution & SSE streaming endpoints
+│   │       └── runs.py             # Run execution, SSE streaming & export endpoints
 │   ├── config/
 │   │   ├── llm_factory.py          # Multi-provider LLM factory (Gemini, Claude, GPT)
 │   │   └── settings.py             # Pydantic BaseSettings management
@@ -340,9 +345,10 @@ crewai-studio/
 │   │   ├── content_crew.py         # Strategist + Copywriter collaborative crew
 │   │   └── research_crew.py        # Researcher + Analyst + Writer pipeline crew
 │   ├── models/
-│   │   └── schemas.py              # Pydantic schemas (CrewConfig, RunResult, Status)
+│   │   └── schemas.py              # Pydantic schemas (CrewConfig, RunResult, RunTelemetry)
 │   └── utils/
-│       └── run_store.py            # Thread-safe in-memory run store
+│       ├── exporter.py             # RunExporter engine (Markdown & JSON export)
+│       └── run_store.py            # Thread-safe SQLite & cache dual-layer run store
 │
 └── ui/
     ├── static/                     # CSS / JS static assets
@@ -353,9 +359,10 @@ crewai-studio/
         │   ├── detail.html         # Crew execution form & live stream monitor
         │   └── runs.html           # Historical run table & status log
         └── partials/               # Reusable HTMX server-rendered components
-            ├── active_run.html     # Active run card with SSE listener
+            ├── active_run.html     # Active run card with SSE listener & export links
             ├── crew_detail.html    # Crew configuration viewer
-            └── runs_list.html      # Dynamic run table fragment
+            ├── run_detail.html     # Run detail view with telemetry & download buttons
+            └── runs_list.html      # Dynamic run table fragment with telemetry badges
 ```
 
 ---
