@@ -1,4 +1,4 @@
-"""API router – crew run endpoints with SSE streaming."""
+"""API router – crew run endpoints with SSE streaming, SQLite persistence, and export engine."""
 from __future__ import annotations
 
 import asyncio
@@ -9,13 +9,14 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from markdown_it import MarkdownIt
 from sse_starlette.sse import EventSourceResponse
 
 from backend.crews import get_crew_class
 from backend.models.schemas import RunRequest, RunResult, RunStatus
+from backend.utils.exporter import RunExporter
 from backend.utils.run_store import run_store
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -55,7 +56,7 @@ class BufferTee:
 
 
 async def _execute_crew(run_id: UUID, crew_name: str, inputs: dict) -> None:
-    """Background task: build and kickoff the crew, stream logs via buffer."""
+    """Background task: build and kickoff the crew, stream logs, track telemetry and persist."""
     await run_store.update_status(run_id, RunStatus.RUNNING)
     _log_buffers[run_id] = [f"Initializing {crew_name.title()} crew..."]
 
@@ -86,6 +87,7 @@ async def _execute_crew(run_id: UUID, crew_name: str, inputs: dict) -> None:
         # Signal end of stream with sentinel
         if run_id in _log_buffers:
             _log_buffers[run_id].append("__DONE__")
+            await run_store.save_logs(run_id, _log_buffers[run_id])
 
 
 # ── Run creation endpoint (handles Form and JSON) ─────────────────────────────
@@ -140,6 +142,61 @@ async def get_run(run_id: UUID) -> RunResult:
     return run
 
 
+@router.get("/{run_id}/logs")
+async def get_run_logs(run_id: UUID) -> list[str]:
+    """Return persisted execution logs for a run."""
+    run = await run_store.get(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    # Check active memory buffer first, then persisted SQLite logs
+    if run_id in _log_buffers:
+        return [line for line in _log_buffers[run_id] if line != "__DONE__"]
+    return await run_store.get_logs(run_id)
+
+
+# ── Export endpoints ─────────────────────────────────────────────────────────
+
+@router.get("/{run_id}/export/json")
+async def export_run_json(run_id: UUID) -> Response:
+    """Download full run result, telemetry, and logs as structured JSON."""
+    run = await run_store.get(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    logs = (
+        _log_buffers.get(run_id)
+        if run_id in _log_buffers
+        else await run_store.get_logs(run_id)
+    )
+    json_content = RunExporter.to_json(run, logs)
+    headers = {
+        "Content-Disposition": f'attachment; filename="crew_run_{run_id}.json"'
+    }
+    return Response(content=json_content, media_type="application/json", headers=headers)
+
+
+@router.get("/{run_id}/export/markdown")
+@router.get("/{run_id}/export/md")
+async def export_run_markdown(run_id: UUID) -> Response:
+    """Download comprehensive Google L5 execution report as Markdown."""
+    run = await run_store.get(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    logs = (
+        _log_buffers.get(run_id)
+        if run_id in _log_buffers
+        else await run_store.get_logs(run_id)
+    )
+    md_content = RunExporter.to_markdown(run, logs)
+    headers = {
+        "Content-Disposition": f'attachment; filename="crew_run_{run_id}.md"'
+    }
+    return Response(
+        content=md_content,
+        media_type="text/markdown; charset=utf-8",
+        headers=headers,
+    )
+
+
 # ── SSE log stream ─────────────────────────────────────────────────────────────
 
 @router.get("/{run_id}/stream")
@@ -155,25 +212,51 @@ async def stream_run_logs(run_id: UUID) -> EventSourceResponse:
                 sent += 1
                 if line == "__DONE__":
                     run = await run_store.get(run_id)
+                    duration_str = (
+                        f"{run.telemetry.duration_seconds:.2f}s"
+                        if run and run.telemetry.duration_seconds is not None
+                        else "N/A"
+                    )
+                    export_buttons = (
+                        f'<div class="mt-3 pt-3 border-t border-gray-800 flex items-center justify-between text-xs">'
+                        f'<span class="text-gray-400 font-mono">⚡ Duration: <span class="text-white font-semibold">{duration_str}</span> | Logs: <span class="text-white font-semibold">{run.telemetry.log_line_count if run else 0}</span></span>'
+                        f'<div class="flex items-center gap-2">'
+                        f'<a href="/api/runs/{run_id}/export/markdown" download class="px-2.5 py-1 bg-gray-900 hover:bg-gray-800 text-gray-200 rounded border border-gray-700 flex items-center gap-1 transition">📥 Markdown</a>'
+                        f'<a href="/api/runs/{run_id}/export/json" download class="px-2.5 py-1 bg-gray-900 hover:bg-gray-800 text-gray-200 rounded border border-gray-700 flex items-center gap-1 transition">📥 JSON</a>'
+                        f'</div></div>'
+                    )
+
                     if run and run.status == RunStatus.COMPLETED:
                         output_html = md_parser.render(run.output or "")
                         yield {
                             "event": "status",
-                            "data": '<span class="text-xs px-2.5 py-1 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Completed</span>',
+                            "data": f'<span class="text-xs px-2.5 py-1 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Completed ({duration_str})</span>',
                         }
                         yield {
                             "event": "done",
-                            "data": f'<div class="mt-4 p-5 bg-gray-950 border border-emerald-800/40 rounded-xl"><div class="flex items-center gap-2 font-semibold text-emerald-400 mb-3 text-sm"><span>✅</span> Output Report</div><div class="prose prose-invert max-w-none text-gray-200 text-sm leading-relaxed">{output_html}</div></div>',
+                            "data": (
+                                f'<div class="mt-4 p-5 bg-gray-950 border border-emerald-800/40 rounded-xl">'
+                                f'<div class="flex items-center gap-2 font-semibold text-emerald-400 mb-3 text-sm"><span>✅</span> Output Report</div>'
+                                f'<div class="prose prose-invert max-w-none text-gray-200 text-sm leading-relaxed">{output_html}</div>'
+                                f'{export_buttons}'
+                                f'</div>'
+                            ),
                         }
                     else:
                         err_text = html.escape(run.error or "Unknown error" if run else "Run failed")
                         yield {
                             "event": "status",
-                            "data": '<span class="text-xs px-2.5 py-1 rounded-full bg-red-900/60 text-red-300 border border-red-700/50 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>Failed</span>',
+                            "data": f'<span class="text-xs px-2.5 py-1 rounded-full bg-red-900/60 text-red-300 border border-red-700/50 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>Failed ({duration_str})</span>',
                         }
                         yield {
                             "event": "done",
-                            "data": f'<div class="mt-4 p-4 bg-red-950/40 border border-red-800/60 rounded-xl text-red-300 text-xs"><div class="font-semibold text-sm text-red-400 mb-1">❌ Execution Error</div><pre class="font-mono whitespace-pre-wrap">{err_text}</pre></div>',
+                            "data": (
+                                f'<div class="mt-4 p-4 bg-red-950/40 border border-red-800/60 rounded-xl text-red-300 text-xs">'
+                                f'<div class="font-semibold text-sm text-red-400 mb-1">❌ Execution Error</div>'
+                                f'<pre class="font-mono whitespace-pre-wrap">{err_text}</pre>'
+                                f'{export_buttons}'
+                                f'</div>'
+                            ),
                         }
                     return
 
@@ -205,8 +288,9 @@ async def run_detail_partial(request: Request, run_id: UUID) -> HTMLResponse:
     run = await run_store.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    logs = await run_store.get_logs(run_id)
     return templates.TemplateResponse(
         request=request,
         name="partials/run_detail.html",
-        context={"run": run},
+        context={"run": run, "logs": logs},
     )

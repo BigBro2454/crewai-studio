@@ -64,6 +64,15 @@ class RunRequest(BaseModel):
     inputs: dict[str, Any] = Field(default_factory=dict)
 
 
+class RunTelemetry(BaseModel):
+    duration_seconds: float | None = None
+    log_line_count: int = 0
+    output_length: int = 0
+    input_keys: list[str] = Field(default_factory=list)
+    has_error: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class RunResult(BaseModel):
     run_id: UUID = Field(default_factory=uuid4)
     crew_name: str
@@ -73,3 +82,5 @@ class RunResult(BaseModel):
     error: str | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
+    telemetry: RunTelemetry = Field(default_factory=RunTelemetry)
+

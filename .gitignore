@@ -41,6 +41,11 @@ env/
 .Trashes
 ehthumbs.db
 Thumbs.db
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+data/
 .idea/
 .vscode/
 *.swp

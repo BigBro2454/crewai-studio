@@ -1,0 +1,56 @@
+{# HTMX partial – rendered by GET /api/runs/{run_id}/ui #}
+<div class="space-y-4">
+  <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+    <div>
+      <h3 class="text-lg font-bold text-white">{{ run.crew_name | title }} Crew Run</h3>
+      <p class="text-xs text-gray-500 font-mono">ID: {{ run.run_id }}</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="/api/runs/{{ run.run_id }}/export/markdown" download class="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded border border-gray-700 flex items-center gap-1 transition">
+        📥 Export Markdown
+      </a>
+      <a href="/api/runs/{{ run.run_id }}/export/json" download class="text-xs px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded border border-gray-700 flex items-center gap-1 transition">
+        📥 Export JSON
+      </a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="p-3 bg-gray-900 rounded-lg border border-gray-800">
+      <div class="text-xs text-gray-500 uppercase">Status</div>
+      <div class="text-sm font-semibold text-white mt-1">{{ run.status.value | title }}</div>
+    </div>
+    <div class="p-3 bg-gray-900 rounded-lg border border-gray-800">
+      <div class="text-xs text-gray-500 uppercase">Duration</div>
+      <div class="text-sm font-semibold text-white mt-1">
+        {% if run.telemetry.duration_seconds is not none %}{{ "%.2f"|format(run.telemetry.duration_seconds) }}s{% else %}N/A{% endif %}
+      </div>
+    </div>
+    <div class="p-3 bg-gray-900 rounded-lg border border-gray-800">
+      <div class="text-xs text-gray-500 uppercase">Logs Captured</div>
+      <div class="text-sm font-semibold text-white mt-1">{{ run.telemetry.log_line_count }} lines</div>
+    </div>
+    <div class="p-3 bg-gray-900 rounded-lg border border-gray-800">
+      <div class="text-xs text-gray-500 uppercase">Output Size</div>
+      <div class="text-sm font-semibold text-white mt-1">{{ run.telemetry.output_length }} chars</div>
+    </div>
+  </div>
+
+  {% if run.output %}
+  <div class="p-4 bg-gray-950 border border-emerald-900/40 rounded-xl">
+    <h4 class="text-sm font-semibold text-emerald-400 mb-2">Final Deliverable</h4>
+    <div class="prose prose-invert max-w-none text-gray-200 text-xs whitespace-pre-wrap font-sans leading-relaxed">{{ run.output }}</div>
+  </div>
+  {% endif %}
+
+  {% if logs %}
+  <div>
+    <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Execution Log History</h4>
+    <div class="bg-gray-950 border border-gray-800 rounded-lg p-4 font-mono text-xs text-gray-300 max-h-60 overflow-y-auto space-y-1">
+      {% for log in logs %}
+        <div>{{ log }}</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
