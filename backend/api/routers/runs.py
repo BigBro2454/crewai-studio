@@ -5,6 +5,7 @@ import asyncio
 import html
 import re
 import sys
+import os
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -15,8 +16,11 @@ from markdown_it import MarkdownIt
 from sse_starlette.sse import EventSourceResponse
 
 from backend.crews import get_crew_class
+from backend.crews.mock_engine import MockCrewEngine
 from backend.models.schemas import RunRequest, RunResult, RunStatus
+from backend.utils.benchmark import BenchmarkEngine, BenchmarkSummary
 from backend.utils.exporter import RunExporter
+from backend.utils.guardrails import CrewGuardrails, GuardrailReport
 from backend.utils.run_store import run_store
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -56,33 +60,85 @@ class BufferTee:
 
 
 async def _execute_crew(run_id: UUID, crew_name: str, inputs: dict) -> None:
-    """Background task: build and kickoff the crew, stream logs, track telemetry and persist."""
+    """Background task: evaluate guardrails, build and kickoff the crew or mock engine, stream logs, track telemetry and persist."""
     await run_store.update_status(run_id, RunStatus.RUNNING)
     _log_buffers[run_id] = [f"Initializing {crew_name.title()} crew..."]
 
+    # 1. Evaluate input guardrails
+    clean_inputs, in_guard = CrewGuardrails.evaluate_inputs(inputs)
+    if in_guard.sanitized_items:
+        _log_buffers[run_id].append(
+            f"🛡️ [Guardrails] Sanitized PII in input: {', '.join(in_guard.sanitized_items)} ({in_guard.latency_ms}ms)"
+        )
+
+    if in_guard.blocked:
+        err_msg = f"Security Policy Violation: Blocked adversarial input patterns [{', '.join(in_guard.violations)}]"
+        _log_buffers[run_id].append(f"❌ [Guardrails] {err_msg}")
+        await run_store.update_status(
+            run_id,
+            RunStatus.FAILED,
+            error=err_msg,
+            telemetry={"metadata": {"guardrails": in_guard.model_dump()}},
+        )
+        if run_id in _log_buffers:
+            _log_buffers[run_id].append("__DONE__")
+            await run_store.save_logs(run_id, _log_buffers[run_id])
+        return
+
+    # Check for mock execution mode
+    is_mock = clean_inputs.get("mock") is True or os.getenv("MOCK_CREW", "").lower() in ("true", "1")
+
     try:
-        cls = get_crew_class(crew_name)
-        crew = cls.build()
+        if is_mock:
+            _log_buffers[run_id].append("⚡ [Runtime] Executing in deterministic Mock Mode (Offline Zero-Token)...")
+            output = await MockCrewEngine.execute_mock(crew_name, clean_inputs, _log_buffers[run_id], step_delay=0.03)
+        else:
+            cls = get_crew_class(crew_name)
+            crew = cls.build()
 
-        def _run():
-            old_stdout = sys.stdout
-            old_stderr = sys.stderr
-            sys.stdout = BufferTee(_log_buffers[run_id], old_stdout)
-            sys.stderr = BufferTee(_log_buffers[run_id], old_stderr)
-            try:
-                return crew.kickoff(inputs=inputs)
-            finally:
-                sys.stdout = old_stdout
-                sys.stderr = old_stderr
+            def _run():
+                old_stdout = sys.stdout
+                old_stderr = sys.stderr
+                sys.stdout = BufferTee(_log_buffers[run_id], old_stdout)
+                sys.stderr = BufferTee(_log_buffers[run_id], old_stderr)
+                try:
+                    return crew.kickoff(inputs=clean_inputs)
+                finally:
+                    sys.stdout = old_stdout
+                    sys.stderr = old_stderr
 
-        result = await asyncio.to_thread(_run)
-        output = result.raw if hasattr(result, "raw") else str(result)
-        await run_store.update_status(run_id, RunStatus.COMPLETED, output=output)
+            result = await asyncio.to_thread(_run)
+            output = result.raw if hasattr(result, "raw") else str(result)
+
+        # 2. Evaluate output guardrails
+        clean_output, out_guard = CrewGuardrails.evaluate_output(output)
+        if out_guard.sanitized_items:
+            _log_buffers[run_id].append(
+                f"🛡️ [Guardrails] Sanitized PII in output: {', '.join(out_guard.sanitized_items)}"
+            )
+
+        telemetry_meta = {
+            "metadata": {
+                "guardrails": {
+                    "input": in_guard.model_dump(),
+                    "output": out_guard.model_dump(),
+                    "blocked": False,
+                    "sanitized_items": in_guard.sanitized_items + out_guard.sanitized_items,
+                },
+                "is_mock": is_mock,
+            }
+        }
+        await run_store.update_status(run_id, RunStatus.COMPLETED, output=clean_output, telemetry=telemetry_meta)
     except Exception as exc:
         err_msg = str(exc)
         if run_id in _log_buffers:
             _log_buffers[run_id].append(f"Error: {err_msg}")
-        await run_store.update_status(run_id, RunStatus.FAILED, error=err_msg)
+        await run_store.update_status(
+            run_id,
+            RunStatus.FAILED,
+            error=err_msg,
+            telemetry={"metadata": {"guardrails": in_guard.model_dump(), "is_mock": is_mock}},
+        )
     finally:
         # Signal end of stream with sentinel
         if run_id in _log_buffers:
@@ -132,6 +188,27 @@ async def create_run(
 @router.get("", response_model=list[RunResult])
 async def list_runs() -> list[RunResult]:
     return await run_store.list_all()
+
+
+# ── Benchmark & Token Economics Endpoints ────────────────────────────────────
+
+@router.get("/benchmark/summary", response_model=BenchmarkSummary)
+async def get_benchmark_summary() -> BenchmarkSummary:
+    """Compute aggregate benchmark metrics and multi-model token economics across all runs."""
+    runs = await run_store.list_all()
+    return BenchmarkEngine.analyze_runs(runs)
+
+
+@router.get("/benchmark/export")
+async def export_benchmark_markdown() -> Response:
+    """Download executive Markdown scorecard for cross-run benchmarks."""
+    runs = await run_store.list_all()
+    summary = BenchmarkEngine.analyze_runs(runs)
+    md_content = BenchmarkEngine.to_markdown(summary)
+    headers = {
+        "Content-Disposition": 'attachment; filename="crewai_studio_benchmark_scorecard.md"'
+    }
+    return Response(content=md_content, media_type="text/markdown", headers=headers)
 
 
 @router.get("/{run_id}", response_model=RunResult)
