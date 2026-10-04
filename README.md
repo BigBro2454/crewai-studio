@@ -4,8 +4,10 @@
 [![CrewAI v0.11+](https://img.shields.io/badge/CrewAI-v0.11%2B-FF4B4B?style=flat)](https://crewai.com)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![HTMX](https://img.shields.io/badge/HTMX-2.0-3366CC?style=flat)](https://htmx.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Google Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-8E75B2?style=flat&logo=googlegemini&logoColor=white)](https://aistudio.google.com/)
+[![Security: Guardrails](https://img.shields.io/badge/Security-Zero--Token_Guardrails-9333ea.svg)](#)
+[![Tests: 25/25 Passing](https://img.shields.io/badge/Tests-25%2F25_Passing-brightgreen.svg)](#)
+[![Architecture: Hub](https://img.shields.io/badge/Architecture-Interactive_Hub-0284c7.svg)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **Engineering Design Document & Production Architecture Showcase**  
@@ -239,20 +241,34 @@ sequenceDiagram
 
 ---
 
-## 6. Production Guardrails & Failure Recovery
+## 6. Multi-Stage Security Guardrails & Defense-in-Depth
 
-1. **ANSI Code Sanitization:**
-   - Agent outputs generated via Rich or colorized terminals contain raw ANSI control sequences (e.g., `\x1B[32m`). The `BufferTee` applies pre-compiled regex filters (`re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")`) before queueing strings into SSE buffers, preventing HTML corruption.
-2. **Worker Thread Isolation:**
+CrewAI Studio implements a zero-latency, deterministic defense-in-depth security layer (`backend.utils.guardrails.CrewGuardrails`) executed before inputs reach agent memory and after model outputs are generated:
+
+1. **Adversarial Prompt Injection Neutralization:**
+   - Detects and halts adversarial jailbreak heuristics (`PROMPT_INJECTION_IGNORE_INSTRUCTIONS`, `SYSTEM_PROMPT_OVERRIDE`, `JAILBREAK_ROLEPLAY`, `SAFETY_POLICY_DISREGARD`) in `<0.5ms` with zero token expenditure.
+   - Blocks unauthorized runs with an immediate audit reason and records guardrail metadata into the run's telemetry envelope.
+2. **Deterministic PII Masking & Redaction:**
+   - Automatic regex sanitization across credit cards (`[REDACTED_CREDIT_CARD]`), Social Security Numbers (`[REDACTED_SSN]`), personal emails (`[REDACTED_EMAIL]`), and phone numbers (`[REDACTED_PHONE]`).
+   - Ensures sensitive customer records and developer credentials never leak into vector stores, logs, or agent conversation buffers.
+3. **Worker Thread Isolation & Sentinel Stream Termination:**
    - Long-running inference processes are wrapped in `asyncio.to_thread(_run)` rather than executed in the main event loop, ensuring FastAPI remains 100% responsive to incoming health checks, SSE handshakes, and UI navigation.
-3. **Graceful Degraded Tooling:**
-   - Web search tools (`SerperDevTool`) verify both module availability (`_HAS_SERPER`) and credentials (`SERPER_API_KEY`) at runtime. If absent, the crew gracefully falls back to parametric LLM knowledge without crashing.
-4. **Sentinel Stream Termination:**
    - Every background execution safely appends a `__DONE__` sentinel to the log ring buffer in a `finally` block, ensuring client-side SSE connections cleanly terminate without hanging.
 
 ---
 
-## 7. Quickstart & Installation
+## 7. Autonomous Benchmark Engine & Token Economics Frontier
+
+The autonomous benchmark engine (`backend.utils.benchmark.BenchmarkEngine`) aggregates cross-run performance across the SQLite session store:
+
+- **Empirical SLA Verification**: Measures wall-clock P50 and P90 execution latency, error rates, and total output characters.
+- **Multi-Model Token Economics Comparison**: Simulates production cost frontiers across 1M tokens comparing Google Gemini 2.5 Flash ($0.075 input / $0.30 output) against OpenAI GPT-4o ($2.50 input / $10.00 output) and Claude 3.5 Sonnet ($3.00 input / $15.00 output).
+- **Automated Scorecard Generation**: Exports executive Markdown scorecards via `GET /api/runs/benchmark/export` and machine-readable JSON via `GET /api/runs/benchmark/summary`.
+- **Interactive Single-Page Dashboard**: Self-contained architecture visualizer and live simulator at [`docs/crew_architecture_dashboard.html`](./docs/crew_architecture_dashboard.html), served directly at `/architecture`.
+
+---
+
+## 8. Quickstart & Installation
 
 ### Prerequisites
 - **Python 3.11** or higher
@@ -282,12 +298,12 @@ GEMINI_MODEL="gemini-2.5-flash"
 ```
 
 ### 3. Run Tests
-Verify system integrity, SQLite persistence, and export engines:
+Verify system integrity, guardrails, mock engine, and export pipelines:
 ```bash
 source .venv/bin/activate
 pytest
 ```
-*Expected: 12 passed across unit, API, SQLite persistence, and export engine suites.*
+*Expected: 25 passed across unit, API, guardrails, benchmark, SQLite persistence, and export engine suites.*
 
 ### 4. Start CrewAI Studio
 ```bash
@@ -295,27 +311,35 @@ python main.py
 # Server starts at: http://0.0.0.0:8000
 ```
 
-Open your browser to **`http://localhost:8000`** to access the visual studio!
+Open your browser to:
+- **`http://localhost:8000`** &mdash; Visual Crew Studio & Live Stream Monitor
+- **`http://localhost:8000/architecture`** &mdash; Interactive Architecture & Simulation Dashboard
+- **`http://localhost:8000/benchmark`** &mdash; Enterprise Benchmark & ROI Scorecard
+- **`http://localhost:8000/api/docs`** &mdash; OpenAPI / Swagger UI
 
 ---
 
-## 8. REST & Streaming API Reference
+## 9. REST & Streaming API Reference
 
 | Method | Endpoint | Description | Payload / Response |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/crews` | List all registered crews & configurations | `list[CrewConfig]` |
 | `GET` | `/api/crews/{name}` | Retrieve schema for a specific crew | `CrewConfig` |
-| `POST` | `/api/runs` | Launch a new crew run asynchronously | `{"crew_name": "research", "inputs": {"topic": "AI Agents"}}` $\to$ `202 Accepted` |
+| `POST` | `/api/runs` | Launch a new crew run asynchronously (Supports `mock: true`) | `{"crew_name": "research", "inputs": {"topic": "AI Agents"}}` $\to$ `202 Accepted` |
 | `GET` | `/api/runs` | Retrieve execution history for all runs | `list[RunResult]` |
+| `GET` | `/api/runs/benchmark/summary` | Aggregate benchmark KPIs & token economics | `BenchmarkSummary` |
+| `GET` | `/api/runs/benchmark/export` | Download executive Markdown scorecard | `text/markdown` (attachment) |
 | `GET` | `/api/runs/{run_id}` | Inspect status, telemetry and output of a run | `RunResult` |
 | `GET` | `/api/runs/{run_id}/logs` | Retrieve persisted execution logs | `list[str]` |
 | `GET` | `/api/runs/{run_id}/export/json` | Download structured telemetry & run JSON | `application/json` (attachment) |
 | `GET` | `/api/runs/{run_id}/export/markdown` | Download comprehensive Google L5 report | `text/markdown` (attachment) |
 | `GET` | `/api/runs/{run_id}/stream` | **Server-Sent Events (SSE)** log stream | `text/event-stream` (`log`, `status`, `done`) |
+| `GET` | `/architecture` | Interactive single-page architecture & simulator | `text/html` |
+| `GET` | `/benchmark` | Web UI benchmark scorecard & token ROI view | `text/html` |
 
 ---
 
-## 9. Repository Structure
+## 10. Repository Structure
 
 ```
 crewai-studio/
@@ -325,10 +349,13 @@ crewai-studio/
 ├── main.py                         # Application entrypoint & Uvicorn runner
 ├── pyproject.toml                  # PEP 517/621 packaging metadata & dev dependencies
 ├── README.md                       # L5 Systems Architecture & Design Document
+├── docs/
+│   └── crew_architecture_dashboard.html # Self-contained interactive architecture hub
 ├── scripts/
 │   └── setup.sh                    # Automated dev setup script
 ├── tests/
 │   ├── test_crews.py               # API & crew configuration test suite
+│   ├── test_guardrails_benchmark.py # Security guardrails, mock engine & benchmark test suite
 │   └── test_telemetry_exporter.py  # SQLite persistence & export engine test suite
 │
 ├── backend/
@@ -336,24 +363,28 @@ crewai-studio/
 │   │   ├── app.py                  # FastAPI application & UI route registration
 │   │   └── routers/
 │   │       ├── crews.py            # Crew metadata endpoints
-│   │       └── runs.py             # Run execution, SSE streaming & export endpoints
+│   │       └── runs.py             # Run execution, SSE streaming, benchmark & export endpoints
 │   ├── config/
 │   │   ├── llm_factory.py          # Multi-provider LLM factory (Gemini, Claude, GPT)
 │   │   └── settings.py             # Pydantic BaseSettings management
 │   ├── crews/
 │   │   ├── __init__.py             # Crew registry & dynamic factory
 │   │   ├── content_crew.py         # Strategist + Copywriter collaborative crew
+│   │   ├── mock_engine.py          # Deterministic offline mock execution engine
 │   │   └── research_crew.py        # Researcher + Analyst + Writer pipeline crew
 │   ├── models/
 │   │   └── schemas.py              # Pydantic schemas (CrewConfig, RunResult, RunTelemetry)
 │   └── utils/
+│       ├── benchmark.py            # Cross-run benchmark profiler & token economics engine
 │       ├── exporter.py             # RunExporter engine (Markdown & JSON export)
+│       ├── guardrails.py           # Pre/post execution security guardrails & PII masking
 │       └── run_store.py            # Thread-safe SQLite & cache dual-layer run store
 │
 └── ui/
     ├── static/                     # CSS / JS static assets
     └── templates/
         ├── base.html               # Master layout & sidebar navigation
+        ├── benchmark.html          # Executive benchmark & token economics scorecard
         ├── index.html              # Studio dashboard & metrics
         ├── crews/
         │   ├── detail.html         # Crew execution form & live stream monitor
@@ -361,13 +392,14 @@ crewai-studio/
         └── partials/               # Reusable HTMX server-rendered components
             ├── active_run.html     # Active run card with SSE listener & export links
             ├── crew_detail.html    # Crew configuration viewer
-            ├── run_detail.html     # Run detail view with telemetry & download buttons
+            ├── run_detail.html     # Run detail view with telemetry, guardrails & export
             └── runs_list.html      # Dynamic run table fragment with telemetry badges
 ```
 
 ---
 
-## 10. License & Attributions
+## 11. License & Attributions
 
 Distributed under the **MIT License**. See [`LICENSE`](./LICENSE) for details.  
 Engineered with [CrewAI](https://crewai.com), [FastAPI](https://fastapi.tiangolo.com), and [HTMX](https://htmx.org) by [Ishan Dhiman](https://github.com/BigBro2454).
+

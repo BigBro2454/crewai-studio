@@ -70,3 +70,32 @@ async def runs_page(request: Request) -> HTMLResponse:
         name="crews/runs.html",
         context={"runs": runs_list, "app_name": settings.app_name},
     )
+
+
+@app.get("/architecture", response_class=HTMLResponse)
+async def architecture_page() -> HTMLResponse:
+    """Interactive single-page architecture & multi-agent simulation dashboard."""
+    from pathlib import Path
+    doc_path = Path("docs/crew_architecture_dashboard.html")
+    if doc_path.exists():
+        return HTMLResponse(content=doc_path.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Architecture dashboard not found</h1>", status_code=404)
+
+
+@app.get("/benchmark", response_class=HTMLResponse)
+async def benchmark_page(request: Request) -> HTMLResponse:
+    """Enterprise benchmark scorecard and token economics dashboard."""
+    from backend.utils.benchmark import BenchmarkEngine
+    from backend.utils.run_store import run_store
+
+    runs_list = await run_store.list_all()
+    summary = BenchmarkEngine.analyze_runs(runs_list)
+    return templates.TemplateResponse(
+        request=request,
+        name="benchmark.html",
+        context={
+            "app_name": settings.app_name,
+            "summary": summary,
+        },
+    )
+

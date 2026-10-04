@@ -36,6 +36,26 @@
     </div>
   </div>
 
+  {% if run.telemetry.metadata and run.telemetry.metadata.guardrails %}
+  <div class="p-3 bg-gray-900/80 rounded-lg border border-gray-800 flex items-center justify-between text-xs">
+    <div class="flex items-center gap-2">
+      <span class="text-emerald-400 font-semibold">🛡️ Guardrails Defense:</span>
+      <span class="text-gray-300">
+        {% if run.telemetry.metadata.guardrails.blocked %}
+          <span class="text-red-400 font-bold">Blocked Violation</span>
+        {% else %}
+          <span class="text-emerald-400">Policy Verified</span>
+        {% endif %}
+      </span>
+    </div>
+    {% if run.telemetry.metadata.guardrails.sanitized_items %}
+    <div class="text-amber-400 font-mono text-[11px]">
+      Sanitized: {{ run.telemetry.metadata.guardrails.sanitized_items | join(", ") }}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {% if run.output %}
   <div class="p-4 bg-gray-950 border border-emerald-900/40 rounded-xl">
     <h4 class="text-sm font-semibold text-emerald-400 mb-2">Final Deliverable</h4>
