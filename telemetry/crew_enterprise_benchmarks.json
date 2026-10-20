@@ -1,0 +1,140 @@
+{
+  "timestamp": "2026-10-20T08:34:53Z",
+  "framework": "CrewAI Studio (FastAPI + HTMX + SSE)",
+  "workloads": [
+    {
+      "id": "research",
+      "name": "Research Specialist Crew",
+      "description": "3-tier specialist pipeline: researcher, analyst, executive writer",
+      "agent_count": 3,
+      "task_count": 3,
+      "input_tokens": 2200,
+      "output_tokens": 1000,
+      "cacheable_input_tokens": 1200,
+      "p95_latency_ms": 145.0
+    },
+    {
+      "id": "content",
+      "name": "Content Strategy Crew",
+      "description": "Collaborative 2-agent pipeline: strategist and senior copywriter",
+      "agent_count": 2,
+      "task_count": 2,
+      "input_tokens": 1600,
+      "output_tokens": 800,
+      "cacheable_input_tokens": 900,
+      "p95_latency_ms": 110.0
+    },
+    {
+      "id": "governance",
+      "name": "Enterprise Governance Crew",
+      "description": "3-tier compliance auditor, systemic risk evaluator, and remediation officer",
+      "agent_count": 3,
+      "task_count": 3,
+      "input_tokens": 2400,
+      "output_tokens": 1200,
+      "cacheable_input_tokens": 1400,
+      "p95_latency_ms": 160.0
+    }
+  ],
+  "total_crews": 3,
+  "total_agents": 8,
+  "total_tasks": 8,
+  "fleet_avg_p95_latency_ms": 138.3,
+  "single_fleet_cycle_cost_usd": {
+    "gemini-2.5-flash": 0.001286,
+    "gemini-2.5-flash-lite": 0.000643,
+    "claude-3-5-sonnet": 0.05793,
+    "gpt-4o": 0.042875
+  },
+  "scale_projections": {
+    "10000": {
+      "runs": 10000,
+      "costs": {
+        "gemini-2.5-flash": 4.29,
+        "gemini-2.5-flash-lite": 2.14,
+        "claude-3-5-sonnet": 193.1,
+        "gpt-4o": 142.92
+      },
+      "gemini_cost": 4.29,
+      "gpt_4o_cost": 142.92,
+      "claude_sonnet_cost": 193.1,
+      "annual_savings_vs_gpt4o": 138.63,
+      "reduction_vs_gpt4o_pct": 97.0,
+      "annual_savings_vs_claude": 188.81,
+      "reduction_vs_claude_pct": 97.8
+    },
+    "50000": {
+      "runs": 50000,
+      "costs": {
+        "gemini-2.5-flash": 21.44,
+        "gemini-2.5-flash-lite": 10.72,
+        "claude-3-5-sonnet": 965.5,
+        "gpt-4o": 714.58
+      },
+      "gemini_cost": 21.44,
+      "gpt_4o_cost": 714.58,
+      "claude_sonnet_cost": 965.5,
+      "annual_savings_vs_gpt4o": 693.14,
+      "reduction_vs_gpt4o_pct": 97.0,
+      "annual_savings_vs_claude": 944.06,
+      "reduction_vs_claude_pct": 97.8
+    },
+    "100000": {
+      "runs": 100000,
+      "costs": {
+        "gemini-2.5-flash": 42.88,
+        "gemini-2.5-flash-lite": 21.44,
+        "claude-3-5-sonnet": 1931.0,
+        "gpt-4o": 1429.17
+      },
+      "gemini_cost": 42.88,
+      "gpt_4o_cost": 1429.17,
+      "claude_sonnet_cost": 1931.0,
+      "annual_savings_vs_gpt4o": 1386.29,
+      "reduction_vs_gpt4o_pct": 97.0,
+      "annual_savings_vs_claude": 1888.12,
+      "reduction_vs_claude_pct": 97.8
+    },
+    "500000": {
+      "runs": 500000,
+      "costs": {
+        "gemini-2.5-flash": 214.38,
+        "gemini-2.5-flash-lite": 107.19,
+        "claude-3-5-sonnet": 9655.0,
+        "gpt-4o": 7145.83
+      },
+      "gemini_cost": 214.38,
+      "gpt_4o_cost": 7145.83,
+      "claude_sonnet_cost": 9655.0,
+      "annual_savings_vs_gpt4o": 6931.45,
+      "reduction_vs_gpt4o_pct": 97.0,
+      "annual_savings_vs_claude": 9440.62,
+      "reduction_vs_claude_pct": 97.8
+    },
+    "1000000": {
+      "runs": 1000000,
+      "costs": {
+        "gemini-2.5-flash": 428.75,
+        "gemini-2.5-flash-lite": 214.38,
+        "claude-3-5-sonnet": 19310.0,
+        "gpt-4o": 14291.67
+      },
+      "gemini_cost": 428.75,
+      "gpt_4o_cost": 14291.67,
+      "claude_sonnet_cost": 19310.0,
+      "annual_savings_vs_gpt4o": 13862.92,
+      "reduction_vs_gpt4o_pct": 97.0,
+      "annual_savings_vs_claude": 18881.25,
+      "reduction_vs_claude_pct": 97.8
+    }
+  },
+  "key_metrics_at_500k_runs": {
+    "gemini_2_5_flash_usd": 214.38,
+    "gpt_4o_usd": 7145.83,
+    "claude_3_5_sonnet_usd": 9655.0,
+    "annual_savings_vs_gpt4o_usd": 6931.45,
+    "cost_reduction_vs_gpt4o_pct": 97.0,
+    "annual_savings_vs_claude_usd": 9440.62,
+    "cost_reduction_vs_claude_pct": 97.8
+  }
+}
