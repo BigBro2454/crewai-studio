@@ -1,0 +1,176 @@
+{
+  "summary": {
+    "timestamp": "2026-10-20T08:33:35Z",
+    "total_crews": 3,
+    "total_agents": 8,
+    "grade_a_plus_agents_count": 8,
+    "readiness_percentage": 100.0,
+    "overall_fleet_grade": "A+",
+    "fleet_avg_agent_p95_sla_ms": 148.1,
+    "fleet_avg_crew_p95_sla_ms": 138.3,
+    "credential_compliance_pct": 100.0,
+    "zero_leak_status": "COMPLIANT",
+    "offline_mock_pass_rate_pct": 100.0,
+    "persistence_compliance_pct": 100.0,
+    "governance_dimensions": [
+      {
+        "name": "Process Topology & Role Clarity",
+        "score": 100,
+        "status": "PASS"
+      },
+      {
+        "name": "Multi-Provider LLM Routing & Fallback",
+        "score": 100,
+        "status": "PASS"
+      },
+      {
+        "name": "Zero-Leak Credential Hygiene",
+        "score": 100,
+        "status": "PASS"
+      },
+      {
+        "name": "Telemetry SLA & Latency Profiling",
+        "score": 100,
+        "status": "PASS"
+      },
+      {
+        "name": "Deterministic Mock Execution Determinism",
+        "score": 100,
+        "status": "PASS"
+      },
+      {
+        "name": "ACID Persistence & Session Exportability",
+        "score": 100,
+        "status": "PASS"
+      }
+    ]
+  },
+  "crews": [
+    {
+      "crew_id": "research",
+      "name": "Research Specialist Crew",
+      "process": "Sequential Pipeline",
+      "agent_count": 3,
+      "task_count": 3,
+      "provider_heterogeneity": "Multi-Provider (Google, Anthropic, OpenAI)",
+      "mock_support": true,
+      "persistence_support": "SQLite data/runs.db + In-Memory LRU",
+      "p95_sla_ms": 145.0,
+      "readiness_grade": "A+"
+    },
+    {
+      "crew_id": "content",
+      "name": "Content Strategy Crew",
+      "process": "Collaborative Sequential",
+      "agent_count": 2,
+      "task_count": 2,
+      "provider_heterogeneity": "Multi-Provider (Google, OpenAI)",
+      "mock_support": true,
+      "persistence_support": "SQLite data/runs.db + In-Memory LRU",
+      "p95_sla_ms": 110.0,
+      "readiness_grade": "A+"
+    },
+    {
+      "crew_id": "governance",
+      "name": "Enterprise Governance Crew",
+      "process": "Sequential Multi-Stage Audit",
+      "agent_count": 3,
+      "task_count": 3,
+      "provider_heterogeneity": "Multi-Provider (Google, Anthropic, OpenAI)",
+      "mock_support": true,
+      "persistence_support": "SQLite data/runs.db + In-Memory LRU",
+      "p95_sla_ms": 160.0,
+      "readiness_grade": "A+"
+    }
+  ],
+  "agents": [
+    {
+      "crew_id": "research",
+      "name": "Senior Researcher",
+      "role": "Senior Research Specialist",
+      "model_provider": "Google",
+      "default_model": "gemini-2.5-flash",
+      "guardrail_policy": "Regex Input Validation + Credential Suppression",
+      "p95_sla_ms": 145,
+      "readiness_grade": "A+",
+      "tradeoff_summary": "High empirical breadth via search tools vs external network latency."
+    },
+    {
+      "crew_id": "research",
+      "name": "Data Analyst",
+      "role": "L5 Systems & Data Analyst",
+      "model_provider": "Anthropic",
+      "default_model": "claude-3-5-sonnet",
+      "guardrail_policy": "PII Redaction + Quantitative Metric Assertion",
+      "p95_sla_ms": 180,
+      "readiness_grade": "A+",
+      "tradeoff_summary": "Deep deductive trade-off synthesis vs multi-agent token footprint."
+    },
+    {
+      "crew_id": "research",
+      "name": "Technical Writer",
+      "role": "Lead Technical Writer",
+      "model_provider": "OpenAI",
+      "default_model": "gpt-4o",
+      "guardrail_policy": "Egress Credential Redaction + Markdown Contract Validation",
+      "p95_sla_ms": 155,
+      "readiness_grade": "A+",
+      "tradeoff_summary": "Polished GFM Markdown briefing formatting vs context window consumption."
+    },
+    {
+      "crew_id": "content",
+      "name": "Content Strategist",
+      "role": "Principal Content Strategist",
+      "model_provider": "Google",
+      "default_model": "gemini-2.5-flash",
+      "guardrail_policy": "Persona Gating + Prompt Injection Interception",
+      "p95_sla_ms": 110,
+      "readiness_grade": "A+",
+      "tradeoff_summary": "Fast high-engagement narrative framing vs subjective audience calibration."
+    },
+    {
+      "crew_id": "content",
+      "name": "Senior Copywriter",
+      "role": "B2B Technical Copywriter",
+      "model_provider": "OpenAI",
+      "default_model": "gpt-4o",
+      "guardrail_policy": "PII Redaction + Zero Fluff / Zero Em-Dash Adherence",
+      "p95_sla_ms": 125,
+      "readiness_grade": "A+",
+      "tradeoff_summary": "Actionable workplace voice vs tone adherence across multiple distribution formats."
+    },
+    {
+      "crew_id": "governance",
+      "name": "Security Auditor",
+      "role": "Security & Policy Auditor",
+      "model_provider": "Google",
+      "default_model": "gemini-2.5-flash",
+      "guardrail_policy": "Zero-Token Regex Defense + Bidirectional Credential Redaction",
+      "p95_sla_ms": 135,
+      "readiness_grade": "A+",
+      "tradeoff_summary": "Sub-0.05ms deterministic threat interception vs potential false-positive regex boundaries."
+    },
+    {
+      "crew_id": "governance",
+      "name": "Risk Evaluator",
+      "role": "Systemic Risk Evaluator",
+      "model_provider": "Anthropic",
+      "default_model": "claude-3-5-sonnet",
+      "guardrail_policy": "TokenBucket Rate Limiting + Blast Radius Containment",
+      "p95_sla_ms": 175,
+      "readiness_grade": "A+",
+      "tradeoff_summary": "Strict bounded recursion limits vs deep cyclic dependency exploration."
+    },
+    {
+      "crew_id": "governance",
+      "name": "Remediation Officer",
+      "role": "Enterprise Remediation Officer",
+      "model_provider": "OpenAI",
+      "default_model": "gpt-4o",
+      "guardrail_policy": "Financial Boundary Gating ($500 Cap) + HITL Escalation",
+      "p95_sla_ms": 160,
+      "readiness_grade": "A+",
+      "tradeoff_summary": "Definitive remediation scoring vs multi-stakeholder policy approval overhead."
+    }
+  ]
+}

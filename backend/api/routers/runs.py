@@ -19,7 +19,9 @@ from backend.crews import get_crew_class
 from backend.crews.mock_engine import MockCrewEngine
 from backend.models.schemas import RunRequest, RunResult, RunStatus
 from backend.utils.benchmark import BenchmarkEngine, BenchmarkSummary
+from backend.utils.enterprise_economics import CrewEnterpriseBenchmarker
 from backend.utils.exporter import RunExporter
+from backend.utils.governance import CrewFleetGovernanceAuditor
 from backend.utils.guardrails import CrewGuardrails, GuardrailReport
 from backend.utils.run_store import run_store
 
@@ -209,6 +211,46 @@ async def export_benchmark_markdown() -> Response:
         "Content-Disposition": 'attachment; filename="crewai_studio_benchmark_scorecard.md"'
     }
     return Response(content=md_content, media_type="text/markdown", headers=headers)
+
+
+# ── Enterprise Economics & Fleet Governance Endpoints ────────────────────────
+
+@router.get("/economics/summary")
+async def get_enterprise_economics_summary() -> dict:
+    """Return Vertex AI token economics, latency SLAs, and multi-model cost comparisons."""
+    benchmarker = CrewEnterpriseBenchmarker()
+    return benchmarker.generate_benchmark_summary()
+
+
+@router.get("/economics/export")
+async def export_enterprise_economics_markdown() -> Response:
+    """Download executive Markdown scorecard for enterprise Vertex AI token economics."""
+    benchmarker = CrewEnterpriseBenchmarker()
+    json_path, md_path = benchmarker.export_benchmark_report(export_dir="telemetry")
+    with open(md_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    headers = {
+        "Content-Disposition": 'attachment; filename="crew_enterprise_benchmarks.md"'
+    }
+    return Response(content=content, media_type="text/markdown", headers=headers)
+
+
+@router.get("/governance/summary")
+async def get_fleet_governance_summary() -> dict:
+    """Return 8-agent 3-crew fleet governance audit summary with Grade A+ scoring."""
+    auditor = CrewFleetGovernanceAuditor()
+    return auditor.audit_summary()
+
+
+@router.get("/governance/export")
+async def export_fleet_governance_markdown() -> Response:
+    """Download executive Markdown scorecard for fleet governance and compliance audit."""
+    auditor = CrewFleetGovernanceAuditor()
+    content = auditor.export_markdown(target_path="telemetry/crew_governance_matrix.md")
+    headers = {
+        "Content-Disposition": 'attachment; filename="crew_governance_matrix.md"'
+    }
+    return Response(content=content, media_type="text/markdown", headers=headers)
 
 
 @router.get("/{run_id}", response_model=RunResult)

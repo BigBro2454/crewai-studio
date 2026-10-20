@@ -33,6 +33,9 @@ dependencies = [
     "google-generativeai>=0.7.0",
 ]
 
+[project.scripts]
+crewai-studio = "main:cli_entrypoint"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3.0",

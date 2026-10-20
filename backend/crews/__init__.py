@@ -6,11 +6,13 @@ from backend.models.schemas import CrewConfig
 # Import individual crew factories
 from backend.crews.research_crew import ResearchCrew
 from backend.crews.content_crew import ContentCrew
+from backend.crews.governance_crew import GovernanceCrew
 
 
 CREW_REGISTRY: dict[str, type] = {
     "research": ResearchCrew,
     "content": ContentCrew,
+    "governance": GovernanceCrew,
 }
 
 
